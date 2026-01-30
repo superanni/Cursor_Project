@@ -1,35 +1,42 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { 
   Search, 
-  Filter, 
   RefreshCw, 
   ExternalLink,
   Clock,
-  AlertCircle,
   CheckCircle,
+  RotateCcw,
   Loader2,
-  Inbox
+  Inbox,
+  Filter,
+  X
 } from 'lucide-react'
 import ServiceNowAPI from '../services/servicenowApi'
 
 const TicketListPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all')
+
+  // 状态选项
+  const statusOptions = [
+    { value: 'all', label: '全部', icon: null, color: null },
+    { value: 'in_progress', label: '进行中', icon: Clock, color: '#f59e0b' },
+    { value: 'resolved', label: '已解决', icon: CheckCircle, color: '#10b981' },
+    { value: 'reopen', label: '重新打开', icon: RotateCcw, color: '#ef4444' }
+  ]
 
   // 加载工单列表
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const data = await ServiceNowAPI.getIncidents({
-        limit: 50
-      })
+      const data = await ServiceNowAPI.getIncidents({ limit: 50 })
       setTickets(data)
     } catch (error) {
       console.error('Failed to load tickets:', error)
-      // 如果 API 失败，显示模拟数据
       setTickets(getMockTickets())
     } finally {
       setLoading(false)
@@ -40,28 +47,27 @@ const TicketListPage = () => {
     loadTickets()
   }, [])
 
-  // 获取状态样式
-  const getStatusStyle = (state) => {
-    const stateMap = {
-      'New': { color: '#3b82f6', icon: Clock, label: '新建' },
-      'In Progress': { color: '#f59e0b', icon: Loader2, label: '处理中' },
-      'On Hold': { color: '#8b5cf6', icon: AlertCircle, label: '挂起' },
-      'Resolved': { color: '#10b981', icon: CheckCircle, label: '已解决' },
-      'Closed': { color: '#6b7280', icon: CheckCircle, label: '已关闭' }
+  // 更新URL参数
+  useEffect(() => {
+    if (statusFilter === 'all') {
+      searchParams.delete('status')
+    } else {
+      searchParams.set('status', statusFilter)
     }
-    return stateMap[state] || stateMap['New']
-  }
+    setSearchParams(searchParams)
+  }, [statusFilter])
 
-  // 获取优先级样式
-  const getPriorityStyle = (priority) => {
-    const priorityMap = {
-      '1': { color: '#ef4444', label: '紧急' },
-      '2': { color: '#f59e0b', label: '高' },
-      '3': { color: '#3b82f6', label: '中' },
-      '4': { color: '#10b981', label: '低' },
-      '5': { color: '#6b7280', label: '计划' }
+  // 映射状态
+  const mapStatus = (state) => {
+    const stateMap = {
+      'New': 'in_progress',
+      'In Progress': 'in_progress',
+      'On Hold': 'in_progress',
+      'Resolved': 'resolved',
+      'Closed': 'resolved',
+      'Reopen': 'reopen'
     }
-    return priorityMap[priority] || priorityMap['3']
+    return stateMap[state] || 'in_progress'
   }
 
   // 过滤工单
@@ -70,17 +76,25 @@ const TicketListPage = () => {
       ticket.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.short_description?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesStatus = statusFilter === 'all' || ticket.state === statusFilter
+    const ticketStatus = mapStatus(ticket.state)
+    const matchesStatus = statusFilter === 'all' || ticketStatus === statusFilter
 
     return matchesSearch && matchesStatus
   })
 
+  // 统计数量
+  const getStatusCount = (status) => {
+    if (status === 'all') return tickets.length
+    return tickets.filter(t => mapStatus(t.state) === status).length
+  }
+
   return (
-    <div className="ticket-list-page">
-      <div className="page-header">
+    <div className="ticket-list-page-new">
+      {/* 页面标题 */}
+      <div className="page-title-bar">
         <h1>工单列表</h1>
         <button 
-          className="btn btn-secondary"
+          className="refresh-btn"
           onClick={loadTickets}
           disabled={loading}
         >
@@ -89,36 +103,47 @@ const TicketListPage = () => {
         </button>
       </div>
 
-      {/* 筛选栏 */}
-      <div className="filter-bar">
-        <div className="search-box">
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="搜索工单号或标题..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      {/* 状态筛选标签 */}
+      <div className="status-tabs">
+        {statusOptions.map(option => {
+          const count = getStatusCount(option.value)
+          const isActive = statusFilter === option.value
+          return (
+            <button
+              key={option.value}
+              className={`status-tab ${isActive ? 'active' : ''}`}
+              onClick={() => setStatusFilter(option.value)}
+              style={isActive && option.color ? { 
+                '--tab-color': option.color,
+                '--tab-bg': `${option.color}15`
+              } : {}}
+            >
+              {option.icon && <option.icon size={16} />}
+              <span>{option.label}</span>
+              <span className="tab-count">{count}</span>
+            </button>
+          )
+        })}
+      </div>
 
-        <div className="filter-group">
-          <Filter size={18} />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">全部状态</option>
-            <option value="New">新建</option>
-            <option value="In Progress">处理中</option>
-            <option value="On Hold">挂起</option>
-            <option value="Resolved">已解决</option>
-            <option value="Closed">已关闭</option>
-          </select>
-        </div>
+      {/* 搜索框 */}
+      <div className="search-bar">
+        <Search size={18} className="search-icon" />
+        <input
+          type="text"
+          placeholder="搜索工单号或标题..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {searchTerm && (
+          <button className="clear-search" onClick={() => setSearchTerm('')}>
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* 工单列表 */}
-      <div className="tickets-container">
+      <div className="tickets-list">
         {loading ? (
           <div className="loading-state">
             <Loader2 size={32} className="spinning" />
@@ -130,7 +155,7 @@ const TicketListPage = () => {
             <h3>暂无工单</h3>
             <p>
               {searchTerm || statusFilter !== 'all' 
-                ? '没有匹配的工单，请尝试调整筛选条件'
+                ? '没有匹配的工单，请调整筛选条件'
                 : '您还没有提交过工单'
               }
             </p>
@@ -139,97 +164,122 @@ const TicketListPage = () => {
             </Link>
           </div>
         ) : (
-          <div className="ticket-table">
-            <div className="table-header">
-              <div className="col-number">工单号</div>
-              <div className="col-title">标题</div>
-              <div className="col-status">状态</div>
-              <div className="col-priority">优先级</div>
-              <div className="col-date">创建时间</div>
-              <div className="col-action">操作</div>
-            </div>
-            
-            {filteredTickets.map(ticket => {
-              const statusStyle = getStatusStyle(ticket.state)
-              const priorityStyle = getPriorityStyle(ticket.priority)
-              const StatusIcon = statusStyle.icon
-
-              return (
-                <div key={ticket.sys_id} className="table-row">
-                  <div className="col-number">
-                    <span className="ticket-number">{ticket.number}</span>
-                  </div>
-                  <div className="col-title">
-                    <span className="ticket-title">{ticket.short_description}</span>
-                  </div>
-                  <div className="col-status">
-                    <span 
-                      className="status-badge"
-                      style={{ backgroundColor: `${statusStyle.color}20`, color: statusStyle.color }}
-                    >
-                      <StatusIcon size={14} />
-                      {statusStyle.label}
-                    </span>
-                  </div>
-                  <div className="col-priority">
-                    <span 
-                      className="priority-badge"
-                      style={{ color: priorityStyle.color }}
-                    >
-                      {priorityStyle.label}
-                    </span>
-                  </div>
-                  <div className="col-date">
-                    {formatDate(ticket.sys_created_on)}
-                  </div>
-                  <div className="col-action">
-                    <Link 
-                      to={`/tickets/${ticket.sys_id}`}
-                      className="action-btn"
-                    >
-                      <ExternalLink size={16} />
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          filteredTickets.map(ticket => (
+            <TicketCard key={ticket.sys_id} ticket={ticket} />
+          ))
         )}
       </div>
     </div>
   )
 }
 
-// 格式化日期
+// 工单卡片组件
+const TicketCard = ({ ticket }) => {
+  const getStatusConfig = (state) => {
+    const configs = {
+      'New': { label: '新建', color: '#3b82f6', icon: Clock },
+      'In Progress': { label: '进行中', color: '#f59e0b', icon: Clock },
+      'On Hold': { label: '挂起', color: '#8b5cf6', icon: Clock },
+      'Resolved': { label: '已解决', color: '#10b981', icon: CheckCircle },
+      'Closed': { label: '已关闭', color: '#6b7280', icon: CheckCircle },
+      'Reopen': { label: '重新打开', color: '#ef4444', icon: RotateCcw }
+    }
+    return configs[state] || configs['New']
+  }
+
+  const getPriorityConfig = (priority) => {
+    const configs = {
+      '1': { label: '紧急', color: '#ef4444' },
+      '2': { label: '高', color: '#f59e0b' },
+      '3': { label: '中', color: '#3b82f6' },
+      '4': { label: '低', color: '#10b981' },
+      '5': { label: '计划', color: '#6b7280' }
+    }
+    return configs[priority] || configs['3']
+  }
+
+  const status = getStatusConfig(ticket.state)
+  const priority = getPriorityConfig(ticket.priority)
+  const StatusIcon = status.icon
+
+  return (
+    <Link to={`/tickets/${ticket.sys_id}`} className="ticket-card">
+      <div className="ticket-card-header">
+        <span className="ticket-number">{ticket.number}</span>
+        <span 
+          className="ticket-status-badge"
+          style={{ 
+            color: status.color, 
+            backgroundColor: `${status.color}15`,
+            borderColor: `${status.color}30`
+          }}
+        >
+          <StatusIcon size={12} />
+          {status.label}
+        </span>
+      </div>
+      
+      <h3 className="ticket-card-title">{ticket.short_description}</h3>
+      
+      <div className="ticket-card-footer">
+        <div className="ticket-card-meta">
+          <span 
+            className="priority-dot"
+            style={{ backgroundColor: priority.color }}
+            title={`优先级: ${priority.label}`}
+          />
+          <span className="ticket-date">{formatDate(ticket.sys_created_on)}</span>
+        </div>
+        <ExternalLink size={16} className="view-icon" />
+      </div>
+    </Link>
+  )
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now - date
+  
+  // 小于1小时
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000)
+    return `${minutes}分钟前`
+  }
+  // 小于24小时
+  if (diff < 86400000) {
+    const hours = Math.floor(diff / 3600000)
+    return `${hours}小时前`
+  }
+  // 小于7天
+  if (diff < 604800000) {
+    const days = Math.floor(diff / 86400000)
+    return `${days}天前`
+  }
+  
   return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
     month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: '2-digit'
   })
 }
 
-// 模拟数据（用于演示）
 function getMockTickets() {
   return [
     {
       sys_id: 'mock-1',
       number: 'INC0010001',
-      short_description: '邮箱无法登录，提示密码错误',
-      state: 'New',
-      priority: '2',
-      sys_created_on: new Date().toISOString()
+      short_description: 'VPN 连接断开，无法访问内网',
+      state: 'In Progress',
+      priority: '1',
+      sys_created_on: new Date(Date.now() - 7200000).toISOString()
     },
     {
       sys_id: 'mock-2',
       number: 'INC0010002',
-      short_description: 'VPN 连接断开，无法访问内网资源',
+      short_description: '邮箱无法登录，提示密码错误',
       state: 'In Progress',
-      priority: '1',
+      priority: '2',
       sys_created_on: new Date(Date.now() - 86400000).toISOString()
     },
     {
@@ -244,13 +294,19 @@ function getMockTickets() {
       sys_id: 'mock-4',
       number: 'INC0010004',
       short_description: '系统运行缓慢，需要优化',
-      state: 'On Hold',
+      state: 'Resolved',
       priority: '4',
       sys_created_on: new Date(Date.now() - 259200000).toISOString()
+    },
+    {
+      sys_id: 'mock-5',
+      number: 'INC0010005',
+      short_description: '软件授权过期需要续期',
+      state: 'Reopen',
+      priority: '2',
+      sys_created_on: new Date(Date.now() - 432000000).toISOString()
     }
   ]
 }
 
 export default TicketListPage
-
-

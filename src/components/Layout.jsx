@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { 
   Home, 
   PlusCircle, 
@@ -8,15 +8,22 @@ import {
   X
 } from 'lucide-react'
 import { useState } from 'react'
+import ThemeSwitcher from './ThemeSwitcher'
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const location = useLocation()
 
   const navItems = [
-    { to: '/', icon: Home, label: '首页' },
-    { to: '/create', icon: PlusCircle, label: '创建工单' },
+    { to: '/', icon: Home, label: '首页', exact: true },
+    { to: '/create', icon: PlusCircle, label: '创建工单', highlight: true },
     { to: '/tickets', icon: List, label: '工单列表' }
   ]
+
+  const isActive = (path, exact = false) => {
+    if (exact) return location.pathname === path
+    return location.pathname.startsWith(path)
+  }
 
   return (
     <div className="app-layout">
@@ -28,30 +35,37 @@ const Layout = () => {
         {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
+      {/* 主题切换按钮 */}
+      <ThemeSwitcher />
+
       {/* 侧边栏 */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
-            <Sparkles className="logo-icon" />
-            <span className="logo-text">智能工单</span>
+            <div className="logo-icon-wrap">
+              <Sparkles size={20} />
+            </div>
+            <span className="logo-text">工单系统</span>
           </div>
-          <span className="logo-subtitle">ServiceNow</span>
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => 
-                `nav-item ${isActive ? 'active' : ''}`
-              }
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Icon size={20} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
+          <div className="nav-section">
+            {navItems.map(({ to, icon: Icon, label, highlight, exact }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={exact}
+                className={({ isActive }) => 
+                  `nav-item ${isActive ? 'active' : ''} ${highlight ? 'highlight' : ''}`
+                }
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Icon size={20} />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
         <div className="sidebar-footer">
@@ -59,7 +73,6 @@ const Layout = () => {
             <Sparkles size={14} />
             <span>AI 智能分析</span>
           </div>
-          <p className="version">v1.0.0</p>
         </div>
       </aside>
 
@@ -80,5 +93,3 @@ const Layout = () => {
 }
 
 export default Layout
-
-

@@ -1,0 +1,42 @@
+{
+  "name": "智能工单系统",
+  "short_name": "智能工单",
+  "description": "AI驱动的ServiceNow工单管理系统，支持图片分析和附件上传",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0f",
+  "theme_color": "#6366f1",
+  "lang": "zh-CN",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/ticket.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "创建工单",
+      "short_name": "创建",
+      "description": "快速创建新工单",
+      "url": "/create"
+    },
+    {
+      "name": "工单列表",
+      "short_name": "列表",
+      "description": "查看所有工单",
+      "url": "/tickets"
+    }
+  ]
+}
+

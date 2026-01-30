@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Layout from './components/Layout'
 import HomePage from './pages/HomePage'
 import CreateTicketPage from './pages/CreateTicketPage'
@@ -8,15 +9,15 @@ import TicketDetailPage from './pages/TicketDetailPage'
 
 function App() {
   return (
-    <>
+    <ThemeProvider>
       <Toaster 
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#1a1a2e',
-            color: '#eaeaea',
-            border: '1px solid #3a3a5c'
+            background: 'var(--color-bg-card)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-border)'
           }
         }}
       />
@@ -28,10 +29,8 @@ function App() {
           <Route path="tickets/:id" element={<TicketDetailPage />} />
         </Route>
       </Routes>
-    </>
+    </ThemeProvider>
   )
 }
 
 export default App
-
-
