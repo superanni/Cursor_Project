@@ -1,0 +1,14 @@
+# Netlify 部署配置
+
+[build]
+  # 构建命令
+  command = "npm run build"
+  # 发布目录
+  publish = "dist"
+
+# SPA 路由重定向配置
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
