@@ -298,3 +298,4 @@ function getMockTicket(id) {
 
 export default TicketDetailPage
 
+
